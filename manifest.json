@@ -1,0 +1,10 @@
+{
+  "name": "eBay 在庫登録",
+  "short_name": "在庫登録",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}
