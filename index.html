@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d9488">
+<title>eBay 在庫登録</title>
+<style>
+  :root{
+    --bg:#000000; --card:#15191e; --ink:#e8eef3; --sub:#9aabbb;
+    --line:#262f38; --accent:#2dd4bf; --accent-soft:#123430;
+    --field:#10161b; --ok:#4ade80; --ok-soft:#0f2b1d; --err:#f87171; --err-soft:#2c1416;
+    --ph:#566370;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    font-size:16px; line-height:1.4; padding:12px 12px 28px;}
+  .wrap{max-width:520px; margin:0 auto;}
+  h1{font-size:.95rem; margin:2px 2px 12px; display:flex; align-items:center; gap:7px; font-weight:800;}
+  h1 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  h1 .sub{font-size:.66rem; color:var(--sub); font-weight:600; margin-left:auto;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:11px;}
+  .field{margin-bottom:13px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block; font-size:.72rem; color:var(--sub); margin-bottom:5px; font-weight:700;}
+  label .opt{color:var(--ph); font-weight:600;}
+  .inputrow{position:relative; display:flex; align-items:center;}
+  .unit{position:absolute; left:11px; color:var(--sub); font-size:.85rem; font-weight:800; pointer-events:none;}
+  input[type=text],input[type=number],textarea{width:100%; border:1.5px solid var(--line); background:var(--field);
+    color:var(--ink); border-radius:11px; padding:11px 12px; font-size:1rem; font-weight:600; outline:none;
+    transition:border-color .15s; -moz-appearance:textfield; font-family:inherit;}
+  input.pad-unit{padding-left:28px;}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  input:focus,textarea:focus{border-color:var(--accent);}
+  input::placeholder,textarea::placeholder{color:var(--ph); font-weight:500; opacity:1;}
+  textarea{resize:vertical; min-height:48px;}
+  .locseg{display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px;}
+  .locseg button{border:1.5px solid var(--line); background:var(--field); color:var(--sub);
+    border-radius:11px; padding:12px 2px; font-size:.86rem; font-weight:800; cursor:pointer;
+    transition:all .12s; white-space:nowrap;}
+  .locseg button .ic{margin-right:3px;}
+  .locseg button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .hint{font-size:.66rem; margin-top:5px; min-height:14px; font-weight:700; word-break:break-all;}
+  .hint.ok{color:var(--accent);} .hint.err{color:var(--err);}
+  .submit{width:100%; margin-top:3px; padding:14px; font-size:1.02rem; font-weight:800; color:#fff;
+    background:var(--accent); border:none; border-radius:13px; cursor:pointer; transition:opacity .15s;}
+  .submit:active{opacity:.7;} .submit:disabled{opacity:.5;}
+  .result{margin-top:13px; padding:13px 14px; border-radius:13px; font-size:.86rem; font-weight:600;
+    display:none; line-height:1.5;}
+  .result.show{display:block;}
+  .result.ok{background:var(--ok-soft); color:var(--ok);}
+  .result.err{background:var(--err-soft); color:var(--err);}
+  .result b{font-weight:800;}
+  .spin{display:inline-block; width:13px; height:13px; border:2px solid currentColor;
+    border-top-color:transparent; border-radius:50%; animation:r .7s linear infinite; vertical-align:-1px; margin-right:6px;}
+  @keyframes r{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="dot"></span>在庫を登録<span class="sub">場所＋(商品名 or ID) のみ必須</span></h1>
+
+  <div class="card">
+    <div class="field">
+      <label>在庫場所</label>
+      <div class="locseg" id="loc">
+        <button type="button" data-v="自宅"><span class="ic">🏠</span>自宅</button>
+        <button type="button" data-v="Combase"><span class="ic">📦</span>Combase</button>
+        <button type="button" data-v="Baypack"><span class="ic">🏭</span>Baypack</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>eBay URL か Item ID <span class="opt">(任意・未出品なら空)</span></label>
+      <div class="inputrow"><input type="text" id="item" autocomplete="off"
+        placeholder="ebay.com/itm/336124398626" oninput="onItem()"></div>
+      <div class="hint" id="idhint"></div>
+    </div>
+
+    <div class="field">
+      <label>商品名 <span class="opt">(Item IDがあれば自動取得)</span></label>
+      <div class="inputrow"><input type="text" id="name" autocomplete="off" placeholder="例: BTS VT 香水 Sealed"></div>
+    </div>
+
+    <div class="field">
+      <label>仕入価格 <span class="opt">(任意・空ならPC側で自動補完)</span></label>
+      <div class="inputrow"><span class="unit">¥</span>
+        <input class="pad-unit" type="number" id="cost" inputmode="numeric" placeholder="10500"></div>
+    </div>
+
+    <div class="field">
+      <label>仕入先URL / メルカリ商品ID <span class="opt">(任意)</span></label>
+      <div class="inputrow"><input type="text" id="src" autocomplete="off"
+        placeholder="メルカリは m1234… だけでOK / 他はURL" oninput="onSrc()"></div>
+      <div class="hint" id="srchint"></div>
+    </div>
+
+    <div class="field">
+      <label>メモ <span class="opt">(任意)</span></label>
+      <textarea id="memo" rows="2"></textarea>
+    </div>
+  </div>
+
+  <button class="submit" id="go" onclick="submitInv()">登録する</button>
+  <div class="result" id="res"></div>
+</div>
+
+<script>
+  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxKc8ROBfotsN-kFpcOkwuHLicmStZpfDQpxLnnMd4TY8Na5RhCMppt81DMhLYNGbR0/exec";
+  let loc = "";
+
+  function mercariUrl(s){
+    s=(s||"").trim(); if(!s) return "";
+    let m=s.match(/^(m\d+)$/i); if(m) return "https://jp.mercari.com/transaction/"+m[1];
+    m=s.match(/mercari\.com\/item\/(m\d+)/i); if(m) return "https://jp.mercari.com/transaction/"+m[1];
+    return s;
+  }
+  function onItem(){
+    const v=document.getElementById("item").value||"", h=document.getElementById("idhint");
+    const m=v.match(/(\d{12,13})/);
+    if(m){h.className="hint ok"; h.textContent="✓ ID抽出: "+m[1];}
+    else if(v.trim()){h.className="hint err"; h.textContent="Item ID が見つかりません (12-13桁)";}
+    else{h.className="hint"; h.textContent="";}
+  }
+  function onSrc(){
+    const raw=document.getElementById("src").value||"", h=document.getElementById("srchint");
+    const conv=mercariUrl(raw);
+    if(raw.trim() && conv!==raw.trim()){h.className="hint ok"; h.textContent="→ "+conv;}
+    else{h.className="hint"; h.textContent="";}
+  }
+  document.getElementById("loc").addEventListener("click",function(e){
+    const b=e.target.closest("button"); if(!b) return;
+    loc=b.getAttribute("data-v");
+    for(const x of this.querySelectorAll("button")) x.classList.toggle("on", x===b);
+  });
+  function show(cls,html){const r=document.getElementById("res"); r.className="result show "+cls; r.innerHTML=html;}
+
+  async function submitInv(){
+    const itemRaw=document.getElementById("item").value||"";
+    const idm=itemRaw.match(/(\d{12,13})/);
+    const itemId=idm?idm[1]:"";
+    const name=(document.getElementById("name").value||"").trim();
+    if(!loc){show("err","在庫場所を選んでね"); return;}
+    if(!itemId && !name){show("err","商品名か Item ID のどちらかは入れてね"); return;}
+
+    const go=document.getElementById("go"); go.disabled=true;
+    show("ok",'<span class="spin"></span>登録中…');
+    try{
+      const res=await fetch(WEBAPP_URL,{method:"POST",
+        body:JSON.stringify({action:"inventory_add", item_id:itemId, location:loc, name:name,
+          cost:document.getElementById("cost").value, sourcing_url:document.getElementById("src").value,
+          memo:document.getElementById("memo").value})});
+      const j=await res.json();
+      go.disabled=false;
+      if(j && j.success){
+        const costTxt=(j.cost===""||j.cost===null)?"仕入価格は空 (PC側で補完)":"仕入¥"+Number(j.cost).toLocaleString();
+        show("ok","✅ <b>#"+j.inv_no+"</b> 登録完了<br>"+(j.title?"商品: "+j.title+"<br>":"")+j.location+" / "+costTxt);
+        for(const id of ["item","name","cost","src","memo"]) document.getElementById(id).value="";
+        document.getElementById("idhint").textContent=""; document.getElementById("srchint").textContent="";
+        loc=""; for(const x of document.querySelectorAll("#loc button")) x.classList.remove("on");
+      }else{
+        show("err","⚠️ "+((j&&j.error)||"登録に失敗しました"));
+      }
+    }catch(err){
+      go.disabled=false; show("err","⚠️ 通信エラー: "+err.message);
+    }
+  }
+</script>
+</body>
+</html>
