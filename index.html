@@ -76,7 +76,12 @@
   .lno{font-size:.72rem; font-weight:800; color:var(--accent); flex:0 0 auto;}
   .loc{font-size:.6rem; font-weight:800; background:var(--field); color:var(--sub); border:1px solid var(--line);
     border-radius:6px; padding:1px 6px; flex:0 0 auto;}
-  .lname{font-size:.9rem; font-weight:600; line-height:1.3;}
+  .lname{flex:1 1 auto; font-size:.9rem; font-weight:600; line-height:1.3; min-width:0;}
+  .statbtn{flex:0 0 auto; font-size:.6rem; font-weight:800; border-radius:7px; padding:4px 9px;
+    cursor:pointer; border:1px solid; transition:opacity .12s;}
+  .statbtn:active{opacity:.5;}
+  .statbtn.in{background:var(--accent-soft); color:var(--accent); border-color:var(--accent);}
+  .statbtn.out{background:var(--field); color:var(--sub); border-color:var(--line);}
   .l2{display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:5px; font-size:.72rem; color:var(--sub); font-weight:600;}
   .l2 .m{color:var(--ink);}
   .l2 a{color:var(--accent); text-decoration:none; font-weight:700;}
@@ -224,6 +229,23 @@
       renderList();
     }catch(err){ body.innerHTML='<div class="empty">⚠️ 読み込み失敗: '+err.message+'</div>'; }
   }
+  document.getElementById("listbody").addEventListener("click", function(e){
+    const b=e.target.closest(".statbtn"); if(!b) return;
+    toggleStatus(b.getAttribute("data-no"), b.getAttribute("data-status"));
+  });
+  async function toggleStatus(invNo, cur){
+    const next=(cur==="在庫なし")?"在庫有り":"在庫なし";
+    const it=ITEMS && ITEMS.find(x=>String(x.inv_no)===String(invNo));
+    if(!it) return;
+    const prev=it.status;
+    it.status=next; renderList();   // optimistic
+    try{
+      const res=await fetch(WEBAPP_URL,{method:"POST",
+        body:JSON.stringify({action:"inventory_set_status", inv_nos:[Number(invNo)], status:next})});
+      const j=await res.json();
+      if(!(j&&j.success)){ it.status=prev; renderList(); alert("変更失敗: "+((j&&j.error)||"")); }
+    }catch(err){ it.status=prev; renderList(); alert("通信エラー: "+err.message); }
+  }
   function yen(v){ return (v===""||v===null||v===undefined)?"—":"¥"+Number(v).toLocaleString(); }
   function usd(v){ if(v===""||v===null||v===undefined) return "—"; const n=Number(v); return "$"+(Number.isInteger(n)?n:n.toFixed(2)); }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -247,7 +269,9 @@
       h+='<div class="litem'+(sold?' sold':'')+'">'
         +'<div class="l1"><span class="lno">#'+esc(it.inv_no)+'</span>'
         +'<span class="loc">'+esc(it.location||"—")+'</span>'
-        +'<span class="lname">'+esc(it.name||"(名称なし)")+'</span></div>'
+        +'<span class="lname">'+esc(it.name||"(名称なし)")+'</span>'
+        +'<button class="statbtn '+(sold?'out':'in')+'" data-no="'+esc(it.inv_no)+'" data-status="'+esc(it.status||'')+'">'
+        +(sold?'在庫なし':'在庫有り')+'</button></div>'
         +'<div class="l2"><span>仕入 <span class="m">'+yen(it.cost)+'</span></span>'
         +'<span>eBay <span class="m">'+usd(it.ebay_price)+'</span></span>'
         +'<span>'+idpart+'</span></div>'
