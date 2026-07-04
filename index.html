@@ -68,8 +68,11 @@
   .listbar input{flex:1;}
   .refresh{background:var(--field); border:1.5px solid var(--line); color:var(--sub); border-radius:11px;
     padding:11px 13px; font-size:1rem; cursor:pointer;}
-  .count{font-size:.72rem; color:var(--sub); font-weight:700; margin:0 2px 10px;}
+  .count{font-size:.8rem; color:var(--sub); font-weight:700; margin:0 0 11px; padding:10px 13px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;}
   .count b{color:var(--accent);}
+  .count .tot{font-size:1.05rem;}
+  .count .dim{opacity:.6; font-weight:600; font-size:.72rem;}
   .litem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:9px 11px; margin-bottom:7px;}
   .litem.sold{opacity:.42;}
   .l1{display:flex; align-items:baseline; gap:7px;}
@@ -254,8 +257,11 @@
     if(ITEMS===null){ return; }
     const q=(document.getElementById("q").value||"").trim().toLowerCase();
     const list=ITEMS.filter(it=> !q || String(it.inv_no).includes(q) || String(it.name||"").toLowerCase().includes(q));
-    const inStock=ITEMS.filter(it=>it.status!=="在庫なし").length;
-    document.getElementById("count").innerHTML="在庫有り <b>"+inStock+"</b> / 全 "+ITEMS.length+" 件"+(q?"（該当 "+list.length+"）":"");
+    const inStockItems=ITEMS.filter(it=>it.status!=="在庫なし");
+    const total=inStockItems.reduce((s,it)=>s+(Number(it.cost)||0),0);
+    document.getElementById("count").innerHTML=
+      "在庫有り <b>"+inStockItems.length+"件</b> ｜ 合計 <b class='tot'>¥"+total.toLocaleString()+"</b>"
+      +"<br><span class='dim'>全 "+ITEMS.length+" 件"+(q?" ／ 該当 "+list.length+" 件":"")+"</span>";
     const body=document.getElementById("listbody");
     if(!list.length){ body.innerHTML='<div class="empty">該当なし</div>'; return; }
     let h="";
